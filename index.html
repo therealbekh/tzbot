@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Unite TZ</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --bg: #0a0a0a; --card: #141414; --card2: #1c1c1c;
+  --border: #2a2a2a; --text: #fff; --muted: #555;
+  --accent: #FFE500; --red: #ff4d4d; --green: #4dff91;
+}
+body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+/* Header */
+.header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.logo { display: flex; align-items: center; gap: 8px; }
+.logo-box { width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 15px; color: #000; }
+.logo-name { font-size: 15px; font-weight: 700; }
+.active-badge { background: rgba(255,229,0,0.15); color: var(--accent); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+
+/* Tabs */
+.tabs { display: flex; background: var(--card); border-bottom: 1px solid var(--border); }
+.tab { flex: 1; padding: 11px 0; font-size: 12px; font-weight: 500; text-align: center; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 12px 16px 0; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; }
+.stat-num { font-size: 22px; font-weight: 800; }
+.stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* Task List */
+.list { padding: 12px 16px 80px; }
+.task-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 13px; margin-bottom: 9px; cursor: pointer; active: border-color var(--accent); }
+.task-card.urgent { border-left: 3px solid var(--red); }
+.task-card.normal { border-left: 3px solid var(--accent); }
+.task-card.done-card { opacity: 0.45; }
+.tc-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 7px; }
+.tc-name { font-size: 14px; font-weight: 600; flex: 1; margin-right: 8px; line-height: 1.3; }
+.badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+.badge.urgent { background: rgba(255,77,77,0.15); color: var(--red); }
+.badge.normal { background: rgba(255,229,0,0.12); color: var(--accent); }
+.badge.done { background: rgba(77,255,145,0.12); color: var(--green); }
+.tc-meta { display: flex; flex-direction: column; gap: 3px; }
+.meta-row { font-size: 11px; color: var(--muted); }
+.meta-row b { color: #888; font-weight: 500; }
+
+/* FAB */
+.fab { position: fixed; bottom: 20px; right: 16px; width: 54px; height: 54px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #000; font-weight: 300; cursor: pointer; z-index: 50; box-shadow: 0 4px 20px rgba(255,229,0,0.25); }
+
+/* Empty */
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; }
+
+/* ── Detail View ── */
+.view { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 100; overflow-y: auto; }
+.view.open { display: block; }
+.view-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 10px; position: sticky; top: 0; z-index: 5; }
+.back { width: 32px; height: 32px; border-radius: 8px; background: var(--card2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+.view-title { font-size: 15px; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-body { padding: 16px; }
+.field { margin-bottom: 14px; }
+.field-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; }
+.field-val { font-size: 14px; background: var(--card); border: 1px solid var(--border); border-radius: 9px; padding: 10px 12px; line-height: 1.5; color: var(--text); word-break: break-word; }
+.field-val a { color: var(--accent); }
+.prio-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-bottom: 14px; }
+.prio-pill.urgent { background: rgba(255,77,77,0.12); color: var(--red); }
+.prio-pill.normal { background: rgba(255,229,0,0.12); color: var(--accent); }
+.actions { display: flex; gap: 8px; margin-top: 20px; padding-bottom: 20px; }
+.btn { flex: 1; padding: 13px; border-radius: 10px; font-size: 14px; font-weight: 700; border: none; cursor: pointer; }
+.btn-done { background: var(--accent); color: #000; }
+.btn-del { background: rgba(255,77,77,0.1); color: var(--red); border: 1px solid rgba(255,77,77,0.25); }
+
+/* ── New TZ Form ── */
+.form-body { padding: 16px; padding-bottom: 30px; }
+.form-field { margin-bottom: 14px; }
+.form-label { display: block; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 7px; }
+.form-input, .form-textarea, .form-select {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--text);
+  outline: none; font-family: inherit; transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.form-input:focus, .form-textarea:focus { border-color: var(--accent); }
+.form-textarea { resize: none; height: 90px; line-height: 1.5; }
+.form-select { cursor: pointer; }
+.form-select option { background: #1a1a1a; }
+.prio-btns { display: flex; gap: 8px; }
+.prio-btn { flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 700; border: 1px solid var(--border); background: var(--card); color: var(--muted); cursor: pointer; transition: all 0.15s; text-align: center; }
+.prio-btn.selected-urgent { background: rgba(255,77,77,0.12); color: var(--red); border-color: rgba(255,77,77,0.4); }
+.prio-btn.selected-normal { background: rgba(255,229,0,0.12); color: var(--accent); border-color: rgba(255,229,0,0.4); }
+.submit-btn { width: 100%; padding: 14px; background: var(--accent); color: #000; font-size: 15px; font-weight: 800; border: none; border-radius: 12px; cursor: pointer; margin-top: 8px; }
+.submit-btn:disabled { opacity: 0.4; }
+.success-msg { text-align: center; padding: 40px 20px; }
+.success-icon { font-size: 50px; margin-bottom: 12px; }
+.success-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.success-sub { font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<!-- ── MAIN ── -->
+<div id="main-view">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-box">U</div>
+      <div class="logo-name">Unite TZ</div>
+    </div>
+    <div class="active-badge" id="active-count">0 активных</div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('active')">Активные</div>
+    <div class="tab" onclick="switchTab('urgent')">Срочные</div>
+    <div class="tab" onclick="switchTab('done')">Выполнено</div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num" id="s-all">0</div><div class="stat-label">Всего</div></div>
+    <div class="stat"><div class="stat-num" id="s-urgent" style="color:var(--red)">0</div><div class="stat-label">Срочных</div></div>
+    <div class="stat"><div class="stat-num" id="s-done" style="color:var(--green)">0</div><div class="stat-label">Готово</div></div>
+  </div>
+  <div class="list" id="task-list"></div>
+  <div class="fab" onclick="openNew()">+</div>
+</div>
+
+<!-- ── DETAIL ── -->
+<div class="view" id="detail-view">
+  <div class="view-header">
+    <div class="back" onclick="closeDetail()">←</div>
+    <div class="view-title" id="d-title"></div>
+  </div>
+  <div class="view-body" id="d-body"></div>
+</div>
+
+<!-- ── NEW TZ ── -->
+<div class="view" id="new-view">
+  <div class="view-header">
+    <div class="back" onclick="closeNew()">←</div>
+    <div class="view-title">Новое ТЗ</div>
+  </div>
+  <div class="form-body">
+    <div id="form-content">
+      <div class="form-field">
+        <label class="form-label">Название задачи *</label>
+        <input class="form-input" id="f-name" type="text" placeholder="Reels для Nike UZ">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Клиент / Бренд *</label>
+        <input class="form-input" id="f-client" type="text" placeholder="Nike Uzbekistan">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Описание задачи *</label>
+        <textarea class="form-textarea" id="f-desc" placeholder="Что нужно смонтировать, референсы, пожелания..."></textarea>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Дедлайн *</label>
+        <input class="form-input" id="f-deadline" type="datetime-local">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Ссылка на материалы</label>
+        <input class="form-input" id="f-materials" type="url" placeholder="https://drive.google.com/...">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Приоритет *</label>
+        <div class="prio-btns">
+          <div class="prio-btn" id="prio-urgent" onclick="selectPrio('срочно')">🔴 Срочно</div>
+          <div class="prio-btn" id="prio-normal" onclick="selectPrio('обычно')">🟡 Обычно</div>
+        </div>
+      </div>
+      <button class="submit-btn" onclick="submitTZ()">Создать ТЗ</button>
+    </div>
+    <div id="form-success" style="display:none" class="success-msg">
+      <div class="success-icon">✅</div>
+      <div class="success-title">ТЗ создано!</div>
+      <div class="success-sub">Задача добавлена в общий список</div>
+    </div>
+  </div>
+</div>
+
+<script>
+var tg = window.Telegram.WebApp;
+tg.expand();
+
+var currentTab = 'active';
+var selectedPrio = '';
+
+var tasks = JSON.parse(localStorage.getItem('unite_tasks') || 'null') || [
+  { id: 1, name: "Reels для Nike", client: "Nike Uzbekistan", description: "Монтаж 3 роликов по 30 сек. Референсы в папке Drive.", deadline: "27.04.2026 20:00", materials: "https://drive.google.com", priority: "срочно", done: false, from_username: "bekhruz_pm" },
+  { id: 2, name: "Сторис Adidas", client: "Adidas UZ", description: "10 сторис для запуска новой коллекции. Шрифт Helvetica.", deadline: "28.04.2026 18:00", materials: "", priority: "обычно", done: false, from_username: "aisha_pm" },
+  { id: 3, name: "Видео Samsung", client: "Samsung UZ", description: "Обзор телефона 2 минуты.", deadline: "25.04.2026 15:00", materials: "", priority: "обычно", done: true, from_username: "kamol_pm" },
+];
+
+function save() { localStorage.setItem('unite_tasks', JSON.stringify(tasks)); }
+function nextId() { return Math.max.apply(null, tasks.map(function(t){return t.id;}).concat([0])) + 1; }
+
+function switchTab(tab) {
+  currentTab = tab;
+  var tabEls = document.querySelectorAll('.tab');
+  var names = ['active','urgent','done'];
+  for (var i=0; i<tabEls.length; i++) {
+    tabEls[i].classList.toggle('active', names[i] === tab);
+  }
+  render();
+}
+
+function render() {
+  var active = tasks.filter(function(t){return !t.done;});
+  var urgent = tasks.filter(function(t){return !t.done && t.priority==='срочно';});
+  var done = tasks.filter(function(t){return t.done;});
+
+  document.getElementById('s-all').textContent = tasks.length;
+  document.getElementById('s-urgent').textContent = urgent.length;
+  document.getElementById('s-done').textContent = done.length;
+  document.getElementById('active-count').textContent = active.length + ' активных';
+
+  var list = currentTab==='active' ? active : currentTab==='urgent' ? urgent : done;
+  var el = document.getElementById('task-list');
+
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">Задач нет</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i=0; i<list.length; i++) {
+    var t = list[i];
+    var cls = t.done ? 'done-card' : t.priority==='срочно' ? 'urgent' : 'normal';
+    var bdg = t.done ? 'done">✓ готово' : t.priority==='срочно' ? 'urgent">срочно' : 'normal">обычно';
+    html += '<div class="task-card '+cls+'" onclick="openDetail('+t.id+')">';
+    html += '<div class="tc-top"><div class="tc-name">'+t.name+'</div><div class="badge '+bdg+'</div></div>';
+    html += '<div class="tc-meta">';
+    html += '<div class="meta-row">🏢 <b>'+t.client+'</b></div>';
+    html += '<div class="meta-row">📅 <b>'+t.deadline+'</b></div>';
+    html += '<div class="meta-row">👤 <b>@'+t.from_username+'</b></div>';
+    html += '</div></div>';
+  }
+  el.innerHTML = html;
+}
+
+function openDetail(id) {
+  var t = null;
+  for (var i=0; i<tasks.length; i++) { if (tasks[i].id===id) { t=tasks[i]; break; } }
+  if (!t) return;
+
+  document.getElementById('d-title').textContent = t.name;
+  var pCls = t.priority==='срочно' ? 'urgent' : 'normal';
+  var pIcon = t.priority==='срочно' ? '🔴' : '🟡';
+  var mat = t.materials ? '<div class="field"><div class="field-label">Материалы</div><div class="field-val"><a href="'+t.materials+'" target="_blank">🔗 Открыть файлы</a></div></div>' : '';
+  var acts = !t.done
+    ? '<div class="actions"><button class="btn btn-done" onclick="markDone('+t.id+')">✅ Готово</button><button class="btn btn-del" onclick="deleteTask('+t.id+')">🗑</button></div>'
+    : '<div style="text-align:center;padding:16px;color:var(--green);font-weight:700;">✅ Выполнено</div><div class="actions"><button class="btn btn-del" onclick="deleteTask('+t.id+')">🗑 Удалить</button></div>';
+
+  document.getElementById('d-body').innerHTML =
+    '<div class="prio-pill '+pCls+'">'+pIcon+' '+t.priority+'</div>'+
+    '<div class="field"><div class="field-label">Клиент</div><div class="field-val">'+t.client+'</div></div>'+
+    '<div class="field"><div class="field-label">Описание</div><div class="field-val">'+t.description+'</div></div>'+
+    '<div class="field"><div class="field-label">Дедлайн</div><div class="field-val">📅 '+t.deadline+'</div></div>'+
+    mat+
+    '<div class="field"><div class="field-label">Поставил задачу</div><div class="field-val">👤 @'+t.from_username+'</div></div>'+
+    acts;
+
+  document.getElementById('detail-view').classList.add('open');
+  tg.BackButton.show();
+  tg.BackButton.onClick(closeDetail);
+}
+
+function closeDetail() {
+  document.getElementById('detail-view').classList.remove('open');
+  tg.BackButton.hide();
+  render();
+}
+
+function markDone(id) {
+  for (var i=0; i<tasks.length; i++) { if (tasks[i].id===id) { tasks[i].done=true; break; } }
+  save();
+  tg.HapticFeedback.notificationOccurred('success');
+  closeDetail();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(function(t){return t.id!==id;});
+  save();
+  closeDetail();
+}
+
+function openNew() {
+  document.getElementById('form-content').style.display = 'block';
+  document.getElementById('form-success').style.display = 'none';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-client').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-deadline').value = '';
+  document.getElementById('f-materials').value = '';
+  selectedPrio = '';
+  document.getElementById('prio-urgent').className = 'prio-btn';
+  document.getElementById('prio-normal').className = 'prio-btn';
+  document.getElementById('new-view').classList.add('open');
+  tg.BackButton.show();
+  tg.BackButton.onClick(closeNew);
+}
+
+function closeNew() {
+  document.getElementById('new-view').classList.remove('open');
+  tg.BackButton.hide();
+  render();
+}
+
+function selectPrio(p) {
+  selectedPrio = p;
+  document.getElementById('prio-urgent').className = 'prio-btn' + (p==='срочно' ? ' selected-urgent' : '');
+  document.getElementById('prio-normal').className = 'prio-btn' + (p==='обычно' ? ' selected-normal' : '');
+}
+
+function formatDeadline(val) {
+  if (!val) return '';
+  var d = new Date(val);
+  var dd = ('0'+d.getDate()).slice(-2);
+  var mm = ('0'+(d.getMonth()+1)).slice(-2);
+  var yy = d.getFullYear();
+  var hh = ('0'+d.getHours()).slice(-2);
+  var min = ('0'+d.getMinutes()).slice(-2);
+  return dd+'.'+mm+'.'+yy+' '+hh+':'+min;
+}
+
+function submitTZ() {
+  var name = document.getElementById('f-name').value.trim();
+  var client = document.getElementById('f-client').value.trim();
+  var desc = document.getElementById('f-desc').value.trim();
+  var deadline = document.getElementById('f-deadline').value;
+
+  if (!name || !client || !desc || !deadline || !selectedPrio) {
+    tg.HapticFeedback.notificationOccurred('error');
+    alert('Заполните все обязательные поля и выберите приоритет');
+    return;
+  }
+
+  var user = tg.initDataUnsafe && tg.initDataUnsafe.user;
+  var username = user ? (user.username || user.first_name || 'неизвестно') : 'неизвестно';
+
+  var task = {
+    id: nextId(),
+    name: name,
+    client: client,
+    description: desc,
+    deadline: formatDeadline(deadline),
+    materials: document.getElementById('f-materials').value.trim(),
+    priority: selectedPrio,
+    done: false,
+    from_username: username,
+    created_at: new Date().toISOString()
+  };
+
+  tasks.push(task);
+  save();
+  tg.HapticFeedback.notificationOccurred('success');
+
+  document.getElementById('form-content').style.display = 'none';
+  document.getElementById('form-success').style.display = 'block';
+
+  setTimeout(function() { closeNew(); }, 1800);
+}
+
+render();
+</script>
+</body>
+</html>
